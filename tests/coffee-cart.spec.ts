@@ -1,4 +1,4 @@
-import { test } from '@playwright/test';
+import { test, expect,} from '@playwright/test';
 
 // App under test: Coffee Cart — https://seleniumbase.io/coffee/
 // Routes: menu — /coffee/, cart — /coffee/cart
@@ -13,81 +13,88 @@ test.describe('Coffee Cart', () => {
     await page.goto('/coffee/');
   });
 
-  test('Smoke: menu loads with drinks list and Total button @smoke', async () => {
-    test.skip(
-      true,
-      'TODO: verify the cup list is visible and the Total/checkout button is visible',
-    );
+  test('Smoke: menu loads with drinks list and Total button @smoke', async ({page}) => {
+    const menuLocator = page.locator('[data-test="Cappuccino"]')
+    const totalButtonLocator = page.locator('[data-test="checkout"]')  
+    await expect(menuLocator).toBeVisible();
+    await expect(totalButtonLocator).toBeVisible(); 
   });
 
-  test('Adding two different drinks updates the header cart counter and Total', async () => {
-    test.skip(
-      true,
-      'TODO: click two different cups (e.g. by aria-label/data-test), then assert ' +
-        'header "cart (2)" text and that Total equals the sum of the two drink prices',
-    );
+  test('Adding two different drinks updates the header cart counter and Total', async ({page}) => {
+    const cappuccinoLocator = page.locator('[data-test="Cappuccino"]');
+    const latteLocator = page.locator('[data-test="Cafe_Latte"]')
+    await cappuccinoLocator.click();
+    await latteLocator.click();
+    const cartCounterLocator = page.getByRole('listitem').filter({ hasText: 'cart (2)' }).first();
+    const totalLocator = page.locator('[data-test="checkout"]') 
+    await expect(cartCounterLocator).toContainText('2');
+    await expect(totalLocator).toContainText('35.00');
+
   });
 
-  test('Cart page lists exactly the added items', async () => {
-    test.skip(
-      true,
-      'TODO: add 2 drinks, navigate to /coffee/cart, assert item rows ' + 'locator.toHaveCount(2)',
-    );
+  test('Cart page lists exactly the added items', async ({page}) => {
+    await page.locator('[data-test="Cafe_Latte"]').click();
+    await page.locator('[data-test="Cafe_Breve"]').click();
+    await page.getByRole('link', { name: 'Cart page' }).click();
+    const cartItemsLocator = page.locator('.cart-preview .list-item');
+    await expect(cartItemsLocator).toHaveCount(2);
   });
 
-  test('Increasing item quantity on the cart page updates counter and Total', async () => {
-    test.skip(
-      true,
-      'TODO: on /coffee/cart, click the "+" control for one item, then assert ' +
-        'header cart counter and Total reflect the new quantity/sum',
-    );
+  test('Increasing item quantity on the cart page updates counter and Total', async ({page}) => {
+    await page.locator('[data-test="Espresso"]').click();
+    const cartCounterLocator = page.getByRole('link', { name: 'Cart page' });
+    await expect(cartCounterLocator).toContainText('1');
+    const totalpricelocator = page.locator('[data-test="checkout"]');
+    await expect(totalpricelocator).toContainText('10.00');
+    await page.locator('[data-test="checkout"]').hover();
+    await page.getByRole('button', { name: 'Add one Espresso' }).click();
+    await expect(totalpricelocator).toContainText('20.00');
+    await expect(cartCounterLocator).toContainText('2');
   });
 
-  test('Empty cart shows no items on a fresh session', async () => {
-    test.skip(
-      true,
-      'TODO: navigate straight to /coffee/cart without adding anything, assert ' +
-        'item list locator.toHaveCount(0) (or the list container is hidden)',
-    );
+  test('Empty cart shows no items on a fresh session', async ({page}) => {
+    await page.goto('/coffee/cart');
+    await expect(page.getByText('No coffee, go add some.')).toBeVisible();
   });
 
-  test('Payment modal shows Name, Email and Submit', async () => {
-    test.skip(
-      true,
-      'TODO: click the Total/Pay button, assert the payment modal is visible, ' +
-        'then use expect.soft for the Name field, Email field and Submit button',
-    );
+  test('Payment modal shows Name, Email and Submit', async ({page}) => {
+    await page.locator('[data-test="Cappuccino"]').click();
+    await page.locator('[data-test="checkout"]').click();
+    await expect(page.getByText('Payment details×We will send')).toBeVisible();
+    await expect.soft(page.getByRole('textbox', { name: 'Name' })).toBeVisible();
+    await expect.soft(page.getByRole('textbox', { name: 'Email' })).toBeVisible();
+    await expect.soft(page.getByRole('button', { name: 'Submit' })).toBeVisible();
   });
 
   test.describe('Optional', () => {
-    test('Promo dialog after a 3rd drink is dismissed with No', async () => {
-      test.skip(
-        true,
-        'TODO (bonus): add 3 drinks so the promo dialog appears, click "No", ' +
-          'then assert the scenario completes (e.g. cart still has 3 items)',
-      );
+    test('Promo dialog appears when 3 drinks are added, clicking "No" closes it', async ({ page }) => {
+      await page.locator('[data-test="Cappuccino"]').click();
+      await page.locator('[data-test="Cafe_Latte"]').click();
+      await page.locator('[data-test="Cafe_Breve"]').click();
+      await expect(page.getByText("It's your lucky day!")).toBeVisible();
+      await page.getByRole('button', { name: 'Nah, I\'ll skip.' }).click();
+      const cartCounterLocator = page.getByRole('link', { name: 'Cart page' });
+      await expect(cartCounterLocator).toContainText('3');
     });
 
-    test('Completed payment form shows a success message', async () => {
-      test.skip(
-        true,
-        'TODO (bonus): open the payment modal, fill Name and Email, click Submit, ' +
-          'assert a success message/state appears',
-      );
+    test('Completed payment form shows a success message', async ({ page }) => {
+      await page.locator('[data-test="Cappuccino"]').click();
+      await page.locator('[data-test="checkout"]').click();
+      await page.getByRole('textbox', { name: 'Name' }).fill('John Doe');
+      await page.getByRole('textbox', { name: 'Email' }).fill('john.doe@example.com');
+      await page.getByRole('button', { name: 'Submit' }).click();
+      await expect(page.getByRole('button', { name: 'Thanks for your purchase.' })).toBeVisible();
     });
 
-    test('Skipped on a specific browser with a documented reason', async ({ browserName }) => {
-      test.skip(
-        browserName === 'webkit',
-        'webkit project is disabled in playwright.config.ts for this assignment',
-      );
-      test.skip(true, 'TODO (bonus): implement the real assertions for this scenario');
+    test('Skipped on a specific browser with a documented reason', async ({ browserName, page }) => {
+      test.skip(browserName === 'webkit', 'webkit project is disabled in playwright.config.ts for this assignment');
+      await expect(page.getByRole('listitem').filter({ hasText: 'menu' })).toBeVisible();
     });
 
-    test('Annotated with a tracking issue', async () => {
+    test('Annotated with a tracking issue', async ({page }) => {
       const issueUrl = 'https://example.com/issues/123';
       test.info().annotations.push({ type: 'issue', description: issueUrl });
-      test.skip(true, 'TODO (bonus): implement the real assertions for this scenario');
+      await expect(page.getByRole('listitem').filter({ hasText: 'menu' })).toBeVisible();
     });
   });
 });
